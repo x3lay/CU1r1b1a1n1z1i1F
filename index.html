@@ -581,23 +581,24 @@
         }
 
         function connectWebSocket(nickname, password, action) {
-            if (WS) WS.close();
-            
-            // !!! АДРЕС ВАШЕГО СЕРВЕРА TIMEWEB CLOUD !!!
-            const WS_URL = 'wss://188.225.83.250:8765'; 
-            // -------------------------------------------------------------
-            
-            WS.onopen = () => {
+            // Закрываем старое соединение, если оно существует
+            if (socket) socket.close();
+
+            // !!! ВАЖНО: Убедитесь, что здесь wss://188.225.83.250:8765
+            socket = new WebSocket("wss://188.225.83.250:8765");
+
+            socket.onopen = () => {
+                console.log('✅ Подключено к серверу! Ожидание авторизации...');
                 sendAuthRequest(nickname, password, action);
             };
 
-            WS.onmessage = handleWebSocketMessage;
+            socket.onmessage = handleWebSocketMessage;
 
-            WS.onclose = () => {
+            socket.onclose = () => {
                 if (USER_ID) addSystemMessage("Соединение с чатом потеряно. Попробуйте обновить страницу.");
             };
 
-            WS.onerror = (error) => {
+            socket.onerror = (error) => {
                 console.error("WebSocket Error:", error);
                 addAuthErrorMessage(action, "Не удалось подключиться к серверу. Убедитесь, что сервер запущен и открыт порт 8765.", true);
             };
@@ -608,10 +609,10 @@
                 type: 'auth_request',
                 username: nickname,
                 password: password,
-                action: action, 
+                action: action,
             };
-            if (WS && WS.readyState === WebSocket.OPEN) {
-                WS.send(JSON.stringify(message));
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(message));
                 addAuthErrorMessage(action, "Подключение...", false);
             }
         }
@@ -637,7 +638,7 @@
                 mainContainer.classList.add('active');
                 
                 // Запрашиваем список пользователей
-                WS.send(JSON.stringify({ type: 'get_users_list' }));
+                socket.send(JSON.stringify({ type: 'get_users_list' }));
 
             } else if (data.type === 'auth_error') {
                 // Ошибка авторизации/регистрации
@@ -746,10 +747,10 @@
             messageInput.focus();
 
             // Запрашиваем историю
-            if (WS && WS.readyState === WebSocket.OPEN) {
-                 WS.send(JSON.stringify({ 
-                    type: 'open_private_chat', 
-                    receiver_id: recipientId 
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                 socket.send(JSON.stringify({
+                    type: 'open_private_chat',
+                    receiver_id: recipientId
                 }));
             }
             
@@ -771,8 +772,8 @@
                 receiver_id: CURRENT_RECIPIENT_ID
             };
 
-            if (WS && WS.readyState === WebSocket.OPEN) {
-                WS.send(JSON.stringify(message));
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(message));
                 messageInput.value = '';
             }
         }
@@ -782,7 +783,7 @@
         // =================================================================
 
         async function startCall(hasVideo) {
-             if (!CURRENT_RECIPIENT_ID || !WS || WS.readyState !== WebSocket.OPEN) return;
+             if (!CURRENT_RECIPIENT_ID || !socket || socket.readyState !== WebSocket.OPEN) return;
             
             videoModal.style.display = 'flex';
             callStatus.textContent = `Вызов ${ALL_USERS[CURRENT_RECIPIENT_ID].username}...`;
@@ -806,7 +807,7 @@
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 
-                WS.send(JSON.stringify({
+                socket.send(JSON.stringify({
                     type: 'webrtc_signal',
                     receiver_id: CURRENT_RECIPIENT_ID,
                     signal_type: 'call_offer',
@@ -842,7 +843,7 @@
 
         function handleIceCandidate(event) {
             if (event.candidate) {
-                WS.send(JSON.stringify({
+                socket.send(JSON.stringify({
                     type: 'webrtc_signal',
                     receiver_id: CURRENT_RECIPIENT_ID,
                     signal_type: 'ice_candidate',
@@ -893,7 +894,7 @@
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
 
-                WS.send(JSON.stringify({
+                socket.send(JSON.stringify({
                     type: 'webrtc_signal',
                     receiver_id: senderId,
                     signal_type: 'call_answer',
@@ -901,7 +902,7 @@
                 }));
 
             } else {
-                WS.send(JSON.stringify({
+                socket.send(JSON.stringify({
                     type: 'webrtc_signal',
                     receiver_id: senderId,
                     signal_type: 'call_reject',
@@ -944,8 +945,8 @@
             remoteVideo.srcObject = null;
             videoModal.style.display = 'none';
             
-            if (notifyPeer && CURRENT_RECIPIENT_ID && WS && WS.readyState === WebSocket.OPEN) {
-                 WS.send(JSON.stringify({
+            if (notifyPeer && CURRENT_RECIPIENT_ID && socket && socket.readyState === WebSocket.OPEN) {
+                 socket.send(JSON.stringify({
                     type: 'webrtc_signal',
                     receiver_id: CURRENT_RECIPIENT_ID,
                     signal_type: 'call_hangup',
