@@ -478,7 +478,7 @@
         const themeToggle = document.getElementById('theme-toggle');
 
         let USER_ID = localStorage.getItem('user_id'); 
-        let WS = null;
+        let socket = null; // <-- ИСПРАВЛЕНИЕ: Используем socket глобально
         let CURRENT_RECIPIENT_ID = null;
         let ALL_USERS = {}; 
         
