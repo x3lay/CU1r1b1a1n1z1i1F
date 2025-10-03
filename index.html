@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urbanzi Chat | Modern P2P</title>
+    <style>
+        /* =================================================================
+           1. ПЕРЕМЕННЫЕ ЦВЕТА (ЯРКИЙ ДИЗАЙН)
+           ================================================================= */
+        :root {
+            --bg-main: #f0f4f8; /* Светлый фон */
+            --workspace-bg: #ffffff; /* Белая рабочая область */
+            --sidebar-bg: #e6eef4; /* Светло-голубой сайдбар */
+            --accent-blue: #007aff; /* Яркий акцент */
+            --accent-green: #2ecc71; /* Для звонков */
+            --accent-red: #e74c3c; /* Для завершения */
+            --text-dark: #2c3e50;
+            --text-light: #7f8c8d;
+            --border-light: #dce1e6;
+            --shadow-color: rgba(44, 62, 80, 0.2);
+            --message-my-bg: #ccf2ff; /* Светло-голубой для своих */
+            --message-other-bg: #ffffff;
+            --online-color: var(--accent-green);
+            --offline-color: var(--text-light);
+        }
+        
+        body.dark-theme {
+            --bg-main: #1c232c;
+            --workspace-bg: #28303a;
+            --sidebar-bg: #1e252e;
+            --accent-blue: #4a90e2; 
+            --accent-green: #27ae60;
+            --accent-red: #c0392b;
+            --text-dark: #f0f2f5;
+            --text-light: #a9b0ba;
+            --border-light: #3e4854;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --message-my-bg: #1e4559; /* Темный акцент для своих */
+            --message-other-bg: #35404d;
+            --online-color: var(--accent-green);
+            --offline-color: #6c757d;
+        }
+
+        /* =================================================================
+           2. ОСНОВНЫЕ СТИЛИ
+           ================================================================= */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0; 
+            padding: 0; 
+            background: var(--bg-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-dark);
+            transition: background 0.5s, color 0.5s; 
+        }
+
+        #main-container {
+            max-width: 1200px;
+            width: 95%;
+            height: 90vh;
+            min-height: 600px;
+            background: var(--workspace-bg);
+            border-radius: 15px;
+            box-shadow: 0 15px 40px var(--shadow-color); /* Более выразительная тень */
+            
+            display: grid;
+            grid-template-columns: 280px 1fr; 
+            overflow: hidden;
+            
+            visibility: hidden; 
+            opacity: 0;
+            transform: scale(0.98);
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        
+        #main-container.active {
+            visibility: visible;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Общий стиль для кнопок */
+        .btn-custom {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s, opacity 0.2s, transform 0.1s;
+            color: white;
+            background-color: var(--accent-blue);
+            outline: none;
+            user-select: none;
+        }
+        .btn-custom:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-custom:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        /* ----------------------- СТИЛИ САЙДБАРА (КОНТАКТЫ) ----------------------- */
+        #sidebar {
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column; 
+        }
+        
+        .contacts-header {
+            padding: 15px 20px;
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        #contacts-list {
+            flex-grow: 1; 
+            overflow-y: auto;
+            padding: 0;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-left: 3px solid transparent;
+            position: relative;
+        }
+        
+        .contact-item:hover {
+            background: rgba(0, 0, 0, 0.03);
+        }
+        body.dark-theme .contact-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .contact-item.active {
+            background: var(--border-light);
+            border-left-color: var(--accent-blue);
+        }
+
+        .online-status {
+            position: absolute;
+            bottom: 15px;
+            left: 35px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 2px solid var(--sidebar-bg); 
+            transition: background-color 0.3s;
+        }
+        
+        .contact-item.online .online-status {
+            background-color: var(--online-color);
+        }
+
+        .contact-item.offline .online-status {
+            background-color: var(--offline-color);
+        }
+
+        /* ----------------------- СТИЛИ ЧАТА ----------------------- */
+        #chat-area {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #chat-header {
+            min-height: 60px;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            background: var(--workspace-bg);
+        }
+        
+        #chat-window {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .message {
+            max-width: 65%; 
+            padding: 10px 15px;
+            border-radius: 15px;
+            word-wrap: break-word;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1); 
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .my-message {
+            background-color: var(--message-my-bg);
+            color: var(--text-dark);
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        .other-message {
+            background-color: var(--message-other-bg);
+            color: var(--text-dark);
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-time {
+            font-size: 0.75em;
+            opacity: 0.6;
+            margin-top: 5px;
+            align-self: flex-end;
+        }
+        
+        /* ----------------------- ИНПУТ ЧАТА ----------------------- */
+        #chat-input {
+            min-height: 60px;
+            padding: 10px 20px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            background: var(--workspace-bg);
+        }
+
+        #message-input {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            outline: none;
+            font-size: 1em;
+            background: transparent;
+            color: var(--text-dark);
+            margin-right: 10px;
+            transition: border-color 0.2s;
+        }
+        #message-input:focus {
+             border-color: var(--accent-blue);
+        }
+
+        /* ----------------------- УПРАВЛЕНИЕ И АВАТАРЫ ----------------------- */
+        #user-controls {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .avatar {
+            width: 40px; 
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.2em;
+            background-color: gray; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        
+        #settings-button {
+            background: transparent; 
+            color: var(--text-light); 
+            margin-left: auto; 
+            padding: 5px 10px; 
+            margin-top: 0;
+            border: 1px solid transparent;
+            border-radius: 5px;
+        }
+        #settings-button:hover {
+            background: var(--border-light);
+        }
+        
+        /* ----------------------- СТИЛИ АВТОРИЗАЦИИ И МОДАЛОВ ----------------------- */
+        #auth-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; 
+            align-items: center; z-index: 1000; visibility: hidden; opacity: 0; 
+            transition: opacity 0.3s linear;
+        }
+        #auth-modal.active { visibility: visible; opacity: 1; }
+        .auth-box {
+            background: var(--workspace-bg); padding: 40px; border-radius: 15px; 
+            box-shadow: 0 10px 30px var(--shadow-color); max-width: 450px; width: 90%; 
+            text-align: center; transition: transform 0.3s ease-out, background 0.5s;
+        }
+        .auth-tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); }
+        .auth-tab-btn { flex-grow: 1; padding: 10px 0; cursor: pointer; font-weight: 600; 
+            color: var(--text-light); border: none; background: none; border-bottom: 2px solid transparent; 
+            transition: color 0.2s, border-color 0.2s; }
+        .auth-tab-btn.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+        .auth-content { display: none; }
+        .auth-content.active { display: block; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 0.9em; color: var(--text-light); }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid var(--border-light); 
+            border-radius: 6px; box-sizing: border-box; background: transparent; color: var(--text-dark); 
+            outline: none; transition: border-color 0.2s; }
+        .input-group input:focus { border-color: var(--accent-blue); }
+
+        /* ----------------------- СТИЛИ ВИДЕОЗВОНКА ----------------------- */
+        #video-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0, 0, 0, 0.9); justify-content: center; align-items: center; z-index: 5000;
+        }
+        #local-video {
+            width: 200px; height: 150px; position: absolute; top: 20px; right: 20px; 
+            border: 3px solid white; z-index: 5010; background: black;
+        }
+        #remote-video {
+            width: 80%; max-width: 800px; height: auto; max-height: 90%; background: black;
+        }
+        #call-status {
+            position: absolute; top: 50%; color: white; font-size: 2em;
+        }
+        .video-control {
+            position: absolute; bottom: 30px; display: flex; gap: 30px;
+        }
+        #end-call-btn {
+            background: var(--accent-red); 
+            box-shadow: 0 0 15px var(--accent-red);
+            color: white; border-radius: 50%; width: 50px; 
+            height: 50px; font-size: 1.5em; border: none; cursor: pointer;
+        }
+        #audio-call-btn { background-color: var(--accent-green); }
+        #video-call-btn { background-color: var(--accent-blue); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+    </style>
+</head>
+<body class="dark-theme">
+    
+    <div id="auth-modal" class="active">
+        <div class="auth-box">
+            <h2>Urbanzi Chat</h2>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab-btn active" data-tab="login">Вход</button>
+                <button class="auth-tab-btn" data-tab="register">Регистрация</button>
+            </div>
+
+            <div id="login-content" class="auth-content active">
+                <form id="login-form">
+                    <div class="input-group">
+                        <label for="login-nickname">Никнейм</label>
+                        <input type="text" id="login-nickname" placeholder="@username" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">Пароль</label>
+                        <input type="password" id="login-password" placeholder="******" required>
+                    </div>
+                    <small id="login-error-message" style="color: red; display: none; margin-top: 5px; text-align: center;"></small>
+                    <button type="submit" class="btn-custom btn-auth">Войти</button>
+                </form>
+            </div>
+
+            <div id="register-content" class="auth-content">
+                <form id="register-form">
+                    <div class="input-group">
+                        <label for="register-nickname">Никнейм (3-16 симв., eng, цифры, _)</label>
+                        <input 
+                            type="text" 
+                            id="register-nickname" 
+                            placeholder="@username"
+                            required
+                            minlength="3"
+                            maxlength="16"
+                            pattern="^[a-zA-Z0-9_]{3,16}$"
+                            title="Никнейм должен быть от 3 до 16 символов и содержать только английские буквы, цифры и подчеркивание."
+                        >
+                    </div>
+                    <div class="input-group">
+                        <label for="register-password">Пароль (мин. 6 символов)</label>
+                        <input type="password" id="register-password" placeholder="******" required minlength="6">
+                    </div>
+                    <small id="register-error-message" style="color: red; display: none; margin-top: 5px; text-align: center;"></small>
+                    <button type="submit" class="btn-custom btn-auth">Зарегистрироваться</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+         <div class="settings-content" style="background: var(--workspace-bg); padding: 20px; border-radius: 8px;">
+            <h3>Настройки</h3>
+            <div class="setting-item">
+                <span>Темная тема</span>
+                <label class="switch">
+                    <input type="checkbox" id="theme-toggle" checked>
+                    <span class="slider" style="display: inline-block; width: 40px; height: 20px; background-color: #ccc; border-radius: 10px;"></span>
+                </label>
+            </div>
+            <button onclick="document.getElementById('settings-modal').style.display='none'" 
+                    class="btn-custom" style="margin-top: 20px; background-color: var(--text-light);">Закрыть</button>
+        </div>
+    </div>
+    
+    <div id="video-modal">
+        <video id="local-video" autoplay muted></video>
+        <video id="remote-video" autoplay></video>
+        <h1 id="call-status">Инициализация...</h1>
+        <div class="video-control">
+            <button id="end-call-btn" title="Завершить звонок">❌</button>
+        </div>
+    </div>
+    
+    <div id="main-container">
+        
+        <div id="sidebar">
+            <div class="contacts-header">
+                Контакты
+            </div>
+            
+            <div id="contacts-list">
+                </div>
+            
+            <div id="user-controls">
+                <div class="avatar" id="my-avatar">?</div>
+                <span id="username">Гость</span>
+                <button id="settings-button" title="Настройки">⚙️</button>
+            </div>
+        </div>
+
+        <div id="chat-area">
+            <div id="chat-header">
+                 <div class="avatar" id="recipient-avatar">?</div>
+                <span id="recipient-name">Выберите контакт</span>
+                <div id="call-buttons" style="margin-left: auto; display: flex; gap: 10px;">
+                    <button id="audio-call-btn" class="btn-custom" title="Аудиозвонок" disabled style="background-color: var(--accent-green); margin-top: 0;">🎤</button>
+                    <button id="video-call-btn" class="btn-custom" title="Видеозвонок" disabled style="background-color: var(--accent-blue); margin-top: 0;">📹</button>
+                </div>
+            </div>
+            
+            <div id="chat-window">
+                <p class="system-message">Выберите пользователя слева, чтобы начать чат.</p>
+            </div>
+
+            <div id="chat-input">
+                <input type="text" id="message-input" placeholder="Написать сообщение..." disabled>
+                <button id="send-button" class="btn-custom" disabled>Отправить</button>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // =================================================================
+        // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+        // =================================================================
+        const chatWindow = document.getElementById('chat-window');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const usernameDisplay = document.getElementById('username');
+        const mainContainer = document.getElementById('main-container');
+        const contactsList = document.getElementById('contacts-list');
+        const recipientNameEl = document.getElementById('recipient-name');
+        const recipientAvatarEl = document.getElementById('recipient-avatar');
+        const themeToggle = document.getElementById('theme-toggle');
+
+        let USER_ID = localStorage.getItem('user_id'); 
+        let WS = null;
+        let CURRENT_RECIPIENT_ID = null;
+        let ALL_USERS = {}; 
+        
+        // WebRTC
+        const localVideo = document.getElementById('local-video');
+        const remoteVideo = document.getElementById('remote-video');
+        const videoModal = document.getElementById('video-modal');
+        const callStatus = document.getElementById('call-status');
+        const endCallBtn = document.getElementById('end-call-btn');
+        let peerConnection;
+        let localStream;
+        
+        // КРИТИЧЕСКИЙ ФИКС ДЛЯ WEBRTC: Добавляем несколько STUN-серверов
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+            ]
+        };
+
+        // =================================================================
+        // 1. СЕССИЯ, ТЕМА И ТАБЫ АВТОРИЗАЦИИ (ФИКСЫ ЛОГИКИ)
+        // =================================================================
+
+        function getInitialTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                themeToggle.checked = true;
+            } else {
+                 document.body.classList.remove('dark-theme');
+                 themeToggle.checked = false;
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            getInitialTheme();
+            document.getElementById('auth-modal').classList.add('active'); 
+
+            // Обработка переключения табов
+            document.querySelectorAll('.auth-tab-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.auth-tab-btn').forEach(btn => btn.classList.remove('active'));
+                    document.querySelectorAll('.auth-content').forEach(content => content.classList.remove('active'));
+                    
+                    button.classList.add('active');
+                    document.getElementById(button.dataset.tab + '-content').classList.add('active');
+                    addAuthErrorMessage('login', '', false);
+                    addAuthErrorMessage('register', '', false);
+                });
+            });
+
+            // Форма ВХОДА
+            document.getElementById('login-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const nickname = document.getElementById('login-nickname').value.trim();
+                const password = document.getElementById('login-password').value.trim();
+                connectWebSocket(nickname, password, 'login');
+            });
+
+            // Форма РЕГИСТРАЦИИ
+            document.getElementById('register-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const nickname = document.getElementById('register-nickname').value.trim();
+                const password = document.getElementById('register-password').value.trim();
+                
+                if (!document.getElementById('register-form').checkValidity()) return;
+                
+                connectWebSocket(nickname, password, 'register');
+            });
+
+            // Настройки
+            themeToggle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    document.body.classList.add('dark-theme');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.body.classList.remove('dark-theme');
+                    localStorage.setItem('theme', 'light');
+                }
+            });
+             document.getElementById('settings-button').addEventListener('click', () => {
+                document.getElementById('settings-modal').style.display = 'flex';
+            });
+            
+            // WebRTC кнопки
+            document.getElementById('video-call-btn').addEventListener('click', () => startCall(true));
+            document.getElementById('audio-call-btn').addEventListener('click', () => startCall(false));
+            endCallBtn.addEventListener('click', endCall);
+        });
+
+        function addAuthErrorMessage(type, message, isError = true) {
+            const el = document.getElementById(type + '-error-message');
+            el.textContent = message;
+            el.style.color = isError ? 'red' : 'gray';
+            el.style.display = message ? 'block' : 'none';
+        }
+
+        function connectWebSocket(nickname, password, action) {
+            if (WS) WS.close();
+            
+            // !!! АДРЕС ВАШЕГО СЕРВЕРА TIMEWEB CLOUD !!!
+            WS = new WebSocket("ws://188.225.83.250:8765"); 
+            // -------------------------------------------------------------
+            
+            WS.onopen = () => {
+                sendAuthRequest(nickname, password, action);
+            };
+
+            WS.onmessage = handleWebSocketMessage;
+
+            WS.onclose = () => {
+                if (USER_ID) addSystemMessage("Соединение с чатом потеряно. Попробуйте обновить страницу.");
+            };
+
+            WS.onerror = (error) => {
+                console.error("WebSocket Error:", error);
+                addAuthErrorMessage(action, "Не удалось подключиться к серверу. Убедитесь, что сервер запущен и открыт порт 8765.", true);
+            };
+        }
+
+        function sendAuthRequest(nickname, password, action) {
+            const message = {
+                type: 'auth_request',
+                username: nickname,
+                password: password,
+                action: action, 
+            };
+            if (WS && WS.readyState === WebSocket.OPEN) {
+                WS.send(JSON.stringify(message));
+                addAuthErrorMessage(action, "Подключение...", false);
+            }
+        }
+
+        // =================================================================
+        // 2. ОБРАБОТЧИК СООБЩЕНИЙ СЕРВЕРА
+        // =================================================================
+
+        function handleWebSocketMessage(event) {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'auth_success') {
+                USER_ID = data.user_id;
+                localStorage.setItem('user_id', USER_ID);
+                
+                // Обновляем UI
+                usernameDisplay.textContent = data.username;
+                document.getElementById('my-avatar').textContent = data.username[0].toUpperCase();
+                document.getElementById('my-avatar').style.backgroundColor = data.color;
+                
+                // Закрываем модал, показываем чат
+                document.getElementById('auth-modal').classList.remove('active');
+                mainContainer.classList.add('active');
+                
+                // Запрашиваем список пользователей
+                WS.send(JSON.stringify({ type: 'get_users_list' }));
+
+            } else if (data.type === 'auth_error') {
+                // Ошибка авторизации/регистрации
+                localStorage.removeItem('user_id'); 
+                const activeTab = document.querySelector('.auth-tab-btn.active').dataset.tab;
+                addAuthErrorMessage(activeTab, data.message || 'Ошибка авторизации.', true);
+                
+            } else if (data.type === 'users_list') {
+                renderContactsList(data.users);
+                
+            } else if (data.type === 'chat_history') {
+                renderChatHistory(data.history);
+
+            } else if (data.type === 'message') {
+                addChatMessage(data);
+                
+            } else if (data.type === 'webrtc_signal') {
+                handleWebRTCSignal(data);
+            } else if (data.type === 'webrtc_error') {
+                 addSystemMessage("Ошибка звонка: " + data.message);
+                 endCall(false);
+            }
+        }
+        
+        // =================================================================
+        // 3. ЛОГИКА КОНТАКТОВ И ЧАТА
+        // =================================================================
+
+        function renderContactsList(users) {
+            contactsList.innerHTML = '';
+            ALL_USERS = {};
+            
+            if (users.length === 0) {
+                contactsList.innerHTML = '<p class="system-message" style="padding: 0 20px;">Нет других пользователей.</p>';
+                return;
+            }
+
+            users.forEach(user => {
+                ALL_USERS[user.id] = user;
+                
+                const contactEl = document.createElement('div');
+                contactEl.className = `contact-item ${user.is_online ? 'online' : 'offline'}`;
+                contactEl.dataset.id = user.id;
+                
+                contactEl.innerHTML = `
+                    <div class="avatar" style="background-color: ${user.color};">${user.username[0].toUpperCase()}</div>
+                    <span class="online-status"></span>
+                    <span>${user.username}</span>
+                `;
+                
+                contactEl.addEventListener('click', () => switchConversation(user.id, user.username, user.color));
+                contactsList.appendChild(contactEl);
+            });
+            
+            // Если выбран текущий получатель, обновляем его статус/кнопки
+            if (CURRENT_RECIPIENT_ID) {
+                const recipient = ALL_USERS[CURRENT_RECIPIENT_ID];
+                if (recipient) {
+                    const isOnline = recipient.is_online;
+                    const contactEl = document.querySelector(`.contact-item[data-id="${CURRENT_RECIPIENT_ID}"]`);
+                    if(contactEl) {
+                        contactEl.classList.toggle('online', isOnline);
+                        contactEl.classList.toggle('offline', !isOnline);
+                    }
+                    
+                    toggleChatControls(isOnline);
+                }
+                // Активируем элемент в списке, если он был выбран
+                const activeEl = document.querySelector(`.contact-item[data-id="${CURRENT_RECIPIENT_ID}"]`);
+                if(activeEl) activeEl.classList.add('active');
+            }
+        }
+        
+        function toggleChatControls(isOnline) {
+             messageInput.disabled = !isOnline;
+            sendButton.disabled = !isOnline;
+            document.getElementById('audio-call-btn').disabled = !isOnline;
+            document.getElementById('video-call-btn').disabled = !isOnline;
+            
+            if(!isOnline) {
+                messageInput.placeholder = "Собеседник не в сети";
+            } else {
+                 messageInput.placeholder = "Написать сообщение...";
+            }
+        }
+
+        function switchConversation(recipientId, recipientName, recipientColor) {
+            if (CURRENT_RECIPIENT_ID === recipientId) return;
+            
+            CURRENT_RECIPIENT_ID = recipientId;
+            chatWindow.innerHTML = ''; 
+            
+            // Очищаем активные классы и устанавливаем новый
+            document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+            const newActiveEl = document.querySelector(`.contact-item[data-id="${recipientId}"]`);
+            if(newActiveEl) newActiveEl.classList.add('active');
+            
+            recipientNameEl.textContent = recipientName;
+            recipientAvatarEl.textContent = recipientName[0].toUpperCase();
+            recipientAvatarEl.style.backgroundColor = recipientColor;
+            
+            const recipient = ALL_USERS[recipientId];
+            const isOnline = recipient ? recipient.is_online : false;
+            
+            toggleChatControls(isOnline);
+            messageInput.focus();
+
+            // Запрашиваем историю
+            if (WS && WS.readyState === WebSocket.OPEN) {
+                 WS.send(JSON.stringify({ 
+                    type: 'open_private_chat', 
+                    receiver_id: recipientId 
+                }));
+            }
+            
+            addSystemMessage(`Открыт чат с ${recipientName}. Статус: ${isOnline ? 'Онлайн' : 'Оффлайн'}.`);
+        }
+
+        function sendMessage() {
+            if (!USER_ID || !CURRENT_RECIPIENT_ID || sendButton.disabled) {
+                addSystemMessage("Выберите контакт или дождитесь, пока собеседник будет онлайн.");
+                return;
+            }
+
+            const text = messageInput.value.trim();
+            if (text === "") return;
+
+            const message = {
+                type: 'message',
+                text: text,
+                receiver_id: CURRENT_RECIPIENT_ID
+            };
+
+            if (WS && WS.readyState === WebSocket.OPEN) {
+                WS.send(JSON.stringify(message));
+                messageInput.value = '';
+            }
+        }
+        
+        // =================================================================
+        // 4. WEBRTC (ЗВОНКИ)
+        // =================================================================
+
+        async function startCall(hasVideo) {
+             if (!CURRENT_RECIPIENT_ID || !WS || WS.readyState !== WebSocket.OPEN) return;
+            
+            videoModal.style.display = 'flex';
+            callStatus.textContent = `Вызов ${ALL_USERS[CURRENT_RECIPIENT_ID].username}...`;
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: hasVideo, 
+                    audio: true 
+                });
+                localVideo.srcObject = localStream;
+                localVideo.play();
+                localVideo.style.display = hasVideo ? 'block' : 'none';
+                
+                peerConnection = new RTCPeerConnection(configuration); 
+                peerConnection.onicecandidate = handleIceCandidate;
+                peerConnection.ontrack = handleRemoteTrack;
+                peerConnection.onconnectionstatechange = handleConnectionStateChange;
+                
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                WS.send(JSON.stringify({
+                    type: 'webrtc_signal',
+                    receiver_id: CURRENT_RECIPIENT_ID,
+                    signal_type: 'call_offer',
+                    data: {
+                        sdp: peerConnection.localDescription,
+                        has_video: hasVideo,
+                        sender_name: usernameDisplay.textContent
+                    }
+                }));
+                addSystemMessage("Отправлен вызов. Ожидание ответа...");
+
+            } catch (error) {
+                console.error("Ошибка при получении медиапотока:", error);
+                endCall(false); 
+                alert("Ошибка доступа к камере/микрофону. Проверьте разрешения.");
+            }
+        }
+        
+        function handleConnectionStateChange(event) {
+            if (!peerConnection) return;
+            console.log('PeerConnection state:', peerConnection.connectionState);
+            callStatus.textContent = `Статус: ${peerConnection.connectionState}`;
+
+            if (peerConnection.connectionState === 'connected') {
+                callStatus.textContent = "Соединение установлено.";
+                setTimeout(() => callStatus.textContent = '', 2000); // Очищаем статус
+            } else if (peerConnection.connectionState === 'disconnected' || 
+                       peerConnection.connectionState === 'failed') {
+                endCall(true);
+                addSystemMessage("Звонок завершен (соединение разорвано).");
+            }
+        }
+
+        function handleIceCandidate(event) {
+            if (event.candidate) {
+                WS.send(JSON.stringify({
+                    type: 'webrtc_signal',
+                    receiver_id: CURRENT_RECIPIENT_ID,
+                    signal_type: 'ice_candidate',
+                    data: event.candidate
+                }));
+            }
+        }
+
+        function handleRemoteTrack(event) {
+            if (remoteVideo.srcObject !== event.streams[0]) {
+                remoteVideo.srcObject = event.streams[0];
+                remoteVideo.play();
+            }
+            // Определяем, есть ли видео
+             const hasVideo = event.streams[0].getVideoTracks().length > 0;
+            if (!hasVideo) {
+                // Если только аудио, показываем заглушку
+                remoteVideo.style.background = 'gray';
+            } else {
+                remoteVideo.style.background = 'black';
+            }
+        }
+        
+        async function handleCallOffer(data, senderId) {
+            const { sdp, has_video, sender_name } = data.data;
+
+            if (confirm(`Входящий звонок от ${sender_name} (${has_video ? 'видео' : 'аудио'}). Принять?`)) {
+                
+                CURRENT_RECIPIENT_ID = senderId;
+                switchConversation(senderId, sender_name, ALL_USERS[senderId].color); // Переключаемся на чат звонящего
+                
+                videoModal.style.display = 'flex';
+                callStatus.textContent = "Соединение...";
+
+                localStream = await navigator.mediaDevices.getUserMedia({ video: has_video, audio: true });
+                localVideo.srcObject = localStream;
+                localVideo.play();
+                localVideo.style.display = has_video ? 'block' : 'none';
+                
+                peerConnection = new RTCPeerConnection(configuration);
+                peerConnection.onicecandidate = handleIceCandidate;
+                peerConnection.ontrack = handleRemoteTrack;
+                peerConnection.onconnectionstatechange = handleConnectionStateChange;
+
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+
+                WS.send(JSON.stringify({
+                    type: 'webrtc_signal',
+                    receiver_id: senderId,
+                    signal_type: 'call_answer',
+                    data: { sdp: peerConnection.localDescription }
+                }));
+
+            } else {
+                WS.send(JSON.stringify({
+                    type: 'webrtc_signal',
+                    receiver_id: senderId,
+                    signal_type: 'call_reject',
+                    data: { message: 'Занято' }
+                }));
+                addSystemMessage("Вы отклонили звонок.");
+            }
+        }
+        
+        async function handleCallAnswer(data) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.data.sdp));
+            callStatus.textContent = "Соединение...";
+        }
+        
+        async function handleNewIceCandidate(data) {
+            try {
+                if (peerConnection) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.data));
+                }
+            } catch (e) {
+                console.error('Error adding received ice candidate:', e);
+            }
+        }
+
+        function handleCallReject(data) {
+            alert(`Звонок отклонен: ${data.sender_id} - ${data.data.message}`);
+            endCall(true);
+        }
+
+        function endCall(notifyPeer = false) {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            videoModal.style.display = 'none';
+            
+            if (notifyPeer && CURRENT_RECIPIENT_ID && WS && WS.readyState === WebSocket.OPEN) {
+                 WS.send(JSON.stringify({
+                    type: 'webrtc_signal',
+                    receiver_id: CURRENT_RECIPIENT_ID,
+                    signal_type: 'call_hangup',
+                    data: { message: 'Завершено' }
+                }));
+            }
+        }
+
+        function handleWebRTCSignal(data) {
+            const signalType = data.signal_type;
+            
+            switch (signalType) {
+                case 'call_offer':
+                    handleCallOffer(data, data.sender_id);
+                    break;
+                case 'call_answer':
+                    handleCallAnswer(data);
+                    break;
+                case 'ice_candidate':
+                    handleNewIceCandidate(data);
+                    break;
+                case 'call_reject':
+                    handleCallReject(data);
+                    break;
+                case 'call_hangup':
+                    addSystemMessage(`${ALL_USERS[data.sender_id].username} завершил звонок.`);
+                    endCall(false); // завершаем, но не уведомляем пира (это он уведомил)
+                    break;
+            }
+        }
+        
+        // =================================================================
+        // 5. ФУНКЦИИ ОТОБРАЖЕНИЯ
+        // =================================================================
+
+        function renderChatHistory(history) {
+            chatWindow.innerHTML = ''; 
+            if (history.length === 0) {
+                 addSystemMessage("История сообщений пуста. Начните беседу!");
+            } else {
+                history.forEach(msg => addChatMessage(msg, true)); 
+            }
+        }
+
+        function addChatMessage(data, isHistory = false) {
+            const messageElement = document.createElement('div');
+            const isMyMessage = data.user_id === USER_ID; 
+            
+            if (data.user_id !== CURRENT_RECIPIENT_ID && !isMyMessage) {
+                 // Сообщение не для текущего чата, игнорируем
+                 return; 
+            }
+            
+            messageElement.className = 'message ' + (isMyMessage ? 'my-message' : 'other-message');
+            
+            // Отключаем анимацию для истории, чтобы избежать мерцания
+            if (isHistory) {
+                messageElement.style.animation = 'none'; 
+            }
+
+            const date = new Date(data.time * 1000);
+            const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            let userNameHTML = isMyMessage ? '' : 
+                `<strong style="color: ${data.color};">${data.user}</strong>`;
+                
+            messageElement.innerHTML = `
+                ${userNameHTML}
+                <span>${data.text}</span>
+                <span class="message-time">${timeString}</span>
+            `;
+            
+            chatWindow.appendChild(messageElement);
+            scrollToBottom();
+        }
+        
+        function addSystemMessage(text) {
+            const sysMsg = document.createElement('p');
+            sysMsg.style.cssText = 'text-align: center; color: var(--text-light); font-style: italic; font-size: 0.9em; margin: 10px 0;';
+            sysMsg.textContent = text;
+            chatWindow.appendChild(sysMsg);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+
+    </script>
+</body>
+</html>
